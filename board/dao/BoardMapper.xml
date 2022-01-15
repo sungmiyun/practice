@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper   
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"   
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">  
+<mapper namespace="kr.spring.board.dao.BoardMapper">  
+  
+ 	<select id="selectList" 
+ 	                   parameterType="map" 
+ 	                     resultType="boardVO">
+ 	    SELECT
+ 	    	*
+ 	    FROM (SELECT 
+ 	             a.*,
+ 	             rownum rnum
+ 	          FROM (SELECT 
+ 	                   b.board_num,
+ 	                   <![CDATA[
+ 	                   REPLACE(REPLACE(b.title,'<','&lt;'),'>','&gt;') title,
+ 	                   ]]>
+ 	                   b.hit,
+ 	                   b.modify_date,
+ 	                   b.mem_num,
+ 	                   m.id,
+ 	                   r.re_cnt
+ 	                FROM spboard b 
+                    LEFT OUTER JOIN (SELECT COUNT(*) re_cnt, board_num FROM spboard_reply GROUP BY board_num)r ON b.board_num=r.board_num                            
+ 	                JOIN spmember m ON b.mem_num = m.mem_num 
+ 	                <where>
+			 	    	<if test="keyword != '' and keyfield == 1">
+			 	    		b.title like '%' || #{keyword} || '%'
+			 	    	</if>
+			 	    	<if test="keyword != '' and keyfield == 2">
+			 	    		m.id like '%' || #{keyword} || '%'
+			 	    	</if>
+			 	    	<if test="keyword != '' and keyfield == 3">
+			 	    		b.content like '%' || #{keyword} || '%'
+			 	    	</if>
+			 	    	<if test="keyword != '' and keyfield == 4">
+			 	    		b.title like '%' || #{keyword} || '%' or
+			 	    		m.id like '%' || #{keyword} || '%' or
+			 	    		b.content like '%' || #{keyword} || '%'
+			 	    	</if>
+			 	    </where>
+ 	                ORDER BY b.board_num DESC)a)
+ 	<![CDATA[
+ 		WHERE rnum >= #{start} AND rnum <= #{end}
+ 	]]>                	
+ 	</select>
+
+ 	<select id="selectRowCount" parameterType="map" 
+ 	                          resultType="integer">
+ 	    SELECT
+ 	    	count(*)
+ 	    FROM spboard b
+ 	    JOIN spmember m
+        ON b.mem_num = m.mem_num 
+ 	    <where>
+ 	    	<if test="keyword != '' and keyfield == 1">
+ 	    		b.title like '%' || #{keyword} || '%'
+ 	    	</if>
+ 	    	<if test="keyword != '' and keyfield == 2">
+ 	    		m.id like '%' || #{keyword} || '%'
+ 	    	</if>
+ 	    	<if test="keyword != '' and keyfield == 3">
+ 	    		b.content like '%' || #{keyword} || '%'
+ 	    	</if>
+ 	    	<if test="keyword != '' and keyfield == 4">
+ 	    		b.title like '%' || #{keyword} || '%' or
+ 	    		m.id like '%' || #{keyword} || '%' or
+ 	    		b.content like '%' || #{keyword} || '%'
+ 	    	</if>
+ 	    </where>	
+ 	</select>
+ 		
+ 	<!-- 글 상세 좋아요 처리를 위해 조인할 경우 -->
+ 	<!-- <select id="selectBoard" parameterType="integer" resultType="boardVO">
+ 		SELECT s.*, fav_cnt 
+ 		FROM (SELECT 
+ 		        num,
+ 		        title,
+ 		        content,
+ 		        hit,
+ 		        reg_date,
+ 		        uploadfile,
+ 		        filename,
+ 		        ip,
+ 		        id,
+ 		        lag(num,1) over(order by num) next,
+ 		        lag(title,1) over(order by num) next_title, 
+ 		        lead(num,1) over(order by num) prev,
+ 		        lead(title,1) over(order by num) prev_title 
+ 		      FROM spboard)s 
+ 		 LEFT OUTER JOIN 
+ 		      (SELECT 
+ 		         num, 
+ 		         count(*) fav_cnt 
+ 		         FROM spboard_fav 
+ 		         GROUP BY num) f 
+ 		 ON s.num=f.num 
+ 		 WHERE s.num=#{num}
+ 	</select>	 -->
+ 		
+ 	<!-- 부모글 수정 -->
+ 	<!-- 참고용 아래 updateBoard 사용할 것 -->
+ 	<!-- <update id="updateBoard" parameterType="boardVO">
+ 	    UPDATE spboard
+ 	    <set>
+	 	    <if test="title != ''">title=#{title},</if>
+	 	    <if test="content != ''">content=#{content},</if>
+	 	    <if test="ip != ''">ip=#{ip},</if>
+	 		<if test="filename != ''">uploadfile=#{uploadfile},filename=#{filename}</if>
+ 	    </set>
+ 	    WHERE board_num=#{board_num}
+ 	</update> -->
+ 	<!-- (주의)폼에서 항상 upload 파라미터가 전송되기 때문에 이미지를 업로드하지 않아도 filename은 ''로 처리해야 함 -->
+ 	<update id="updateBoard" parameterType="boardVO">
+ 	    UPDATE spboard SET
+ 	      <if test="filename != ''">
+ 	      uploadfile=#{uploadfile},
+ 	      filename=#{filename},
+ 	      </if>
+ 	      title=#{title},
+ 	      content=#{content},
+ 	      ip=#{ip},
+ 	      modify_date=SYSDATE
+ 	    WHERE board_num=#{board_num}
+ 	</update>
+ 	
+ 	<!-- 댓글 목록(좋아요 없는 댓글) -->
+ 	<!-- <select id="selectListReply" parameterType="map"
+ 	                     resultType="boardReplyVO">
+ 		SELECT
+ 		   re_num,
+ 		   re_content,
+ 		   TO_CHAR(re_date,'YYYY-MM-DD HH24:MI:SS') re_date,
+ 		   board_num,
+ 		   mem_num
+ 		FROM (SELECT 
+ 		        a.*,
+ 		        rownum rnum
+ 		      FROM (SELECT
+ 		              *
+ 		            FROM spboard_reply
+ 		            WHERE board_num = #{board_num}
+ 		            ORDER BY re_num DESC)a)
+ 		<![CDATA[
+ 		WHERE rnum >= #{start} AND rnum <= #{end}
+ 		]]>                                 
+ 	</select> -->
+ 	
+ 	<!-- 댓글 목록(좋아요 있는 댓글) -->
+ 	<select id="selectListReply" parameterType="map"
+ 	                     resultType="boardReplyVO">
+ 		SELECT
+ 		   *
+ 		FROM (SELECT 
+ 		        m.*, 
+ 		        rownum rnum 
+ 		      FROM (SELECT 
+                      *
+                    FROM (SELECT 
+                            re_num,
+ 		                    re_content,
+ 		                    TO_CHAR(re_date,'YYYY-MM-DD HH24:MI:SS') re_date,
+ 		                    board_num,
+ 		                    mem_num
+                          FROM spboard_reply where board_num=#{board_num}) r 
+                               JOIN spmember m
+                               ON r.mem_num = m.mem_num
+                               LEFT OUTER JOIN 
+                               <if test="mem_num!=null">
+                               (SELECT *  FROM (SELECT re_num, count(*) refav_cnt 
+                                                FROM spreply_fav group by re_num)a 
+                                                     LEFT OUTER JOIN 
+                                                     (SELECT refav_num,refav_date,re_num,mem_num click_num FROM spreply_fav where mem_num=#{mem_num})b 
+                                                     USING(re_num))f 
+                              </if>
+                              <if test="mem_num==null">
+                               (select re_num, count(*) refav_cnt from spreply_fav group by re_num)f
+                              </if>                       
+                              USING(re_num) ORDER BY re_num DESC)m)
+                              
+ 		<![CDATA[
+ 		WHERE rnum >= #{start} AND rnum <= #{end}
+ 		]]>                                 
+ 	</select>
+ 	
+</mapper>
+
+
+
+
+
+
+
